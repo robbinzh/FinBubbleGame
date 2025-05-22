@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大文老师消消乐</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #FFF5E6; /* 奶白色背景 */
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 2.5rem;
+            margin: 20px 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .game-container {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 15px;
+            max-width: 900px;
+            padding: 20px;
+            perspective: 1000px;
+            margin-bottom: 30px; /* Added margin to push bubbles up */
+        }
+        
+        .bubble {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            box-sizing: border-box;
+            transform-style: preserve-3d;
+            transition: transform 0.3s ease, background-color 0.3s ease, visibility 0.5s ease, box-shadow 0.3s ease;
+            position: relative; /* Needed for pronunciation button positioning */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add some shadow */
+            transition: transform 0.5s, opacity 0.3s;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            transform: translateZ(20px);
+            user-select: none;
+        }
+        
+        .bubble:hover {
+            transform: translateZ(30px) scale(1.05);
+        }
+        
+        .bubble.selected {
+            transform: translateZ(40px) scale(1.1);
+            box-shadow: 0 15px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .bubble.matched {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateZ(50px) scale(0.1);
+        }
+        
+        .message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 30px 50px;
+            border-radius: 15px;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+            display: none;
+        }
+        
+        .restart-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 1.2rem;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .restart-btn:hover {
+            background-color: #45a049;
+        }
+        
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 15px;
+        }
+        
+        .control-btn {
+            padding: 10px 20px;
+            font-size: 1rem;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .control-btn:hover {
+            background-color: #2980b9;
+        }
+
+        /* Styles for selected, matched, and mismatch states */
+        .bubble.selected {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(52, 152, 219, 0.8); /* Highlight selected */
+        }
+
+        .bubble.matched {
+            /* Style for matched bubbles (before hiding) */
+            /* Example: border or different background */
+            border: 3px solid #2ecc71;
+            visibility: hidden; /* Hide immediately after match styles applied if desired */
+            opacity: 0;
+            transition: visibility 0s 0.5s, opacity 0.5s ease; /* Delay hiding */
+        }
+
+        .bubble.mismatch {
+            animation: shake 0.5s;
+            background-color: #e74c3c !important; /* Indicate mismatch, use !important to override potential inline style */
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+        }
+        
+        .pronunciation-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 30px;
+            height: 30px;
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 14px;
+            color: rgba(0, 0, 0, 0.7);
+            border: none;
+        }
+        
+        .pronunciation-btn:hover {
+            background-color: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <h1>大文老师消消乐</h1>
+    <div class="controls">
+        <label for="categorySelect">选择类别:</label>
+        <select id="categorySelect" style="padding: 5px; border-radius: 3px;">
+            <!-- Options will be populated by JavaScript -->
+        </select>
+        <button class="control-btn" id="newGameBtn">开始新游戏</button>
+    </div>
+    <div id="currentCategoryDisplay" style="margin-top: 10px; font-size: 1.2rem; color: #555;">当前类别: 数字</div>
+    <div class="game-container" id="gameContainer"></div>
+    <div class="message" id="successMessage">
+        恭喜你挑战成功!
+        <button class="restart-btn" id="restartBtn">再玩一次</button>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById('gameContainer');
+        const successMessage = document.getElementById('successMessage');
+        const newGameBtn = document.getElementById('newGameBtn');
+        const categorySelect = document.getElementById('categorySelect');
+        const currentCategoryDisplay = document.getElementById('currentCategoryDisplay');
+        let selectedBubbles = [];
+        let matchedPairs = 0;
+        let currentWordPairs = [];
+        let currentCategory = '数字'; // Default category
+        const totalPairsToSelect = 10; // Target pairs per game
+
+        // Fisher-Yates (aka Knuth) Shuffle
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex !== 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function selectRandomPairs(allPairs, count) {
+            const shuffled = shuffle([...allPairs]);
+            return shuffled.slice(0, count);
+        }
+
+        function createBubble(word, type, pairId) {
+            const bubble = document.createElement('div');
+            bubble.classList.add('bubble');
+            bubble.dataset.word = word;
+            bubble.dataset.type = type; // 'finnish' or 'chinese'
+            bubble.dataset.pairId = pairId;
+            bubble.textContent = word;
+            bubble.style.backgroundColor = getRandomColor();
+            bubble.addEventListener('click', handleBubbleClick);
+            return bubble;
+        }
+
+        function getRandomColor() {
+            const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FED766', '#2AB7CA', '#F0B7A4', '#F56991', '#A7D2CB', '#F2B5D4', '#84A9C0'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function handleBubbleClick(event) {
+            const clickedBubble = event.target;
+
+            // Ignore clicks on already matched or selected bubbles
+            if (clickedBubble.classList.contains('matched') || clickedBubble.classList.contains('selected')) {
+                return;
+            }
+
+            clickedBubble.classList.add('selected');
+            selectedBubbles.push(clickedBubble);
+
+            if (selectedBubbles.length === 2) {
+                checkForMatch();
+            }
+        }
+
+        function checkForMatch() {
+            const [bubble1, bubble2] = selectedBubbles;
+            const allWordPairs = getAllWordPairs(); // Get the word pairs dynamically
+
+            if (bubble1.dataset.pairId === bubble2.dataset.pairId && bubble1.dataset.type !== bubble2.dataset.type) {
+                // Match found
+                bubble1.classList.add('matched');
+                bubble2.classList.add('matched');
+                bubble1.classList.remove('selected');
+                bubble2.classList.remove('selected');
+
+                // Optional: Add a visual effect for matching (e.g., fade out)
+                setTimeout(() => {
+                    bubble1.style.visibility = 'hidden';
+                    bubble2.style.visibility = 'hidden';
+                }, 500); // Match animation duration
+
+                matchedPairs++;
+                selectedBubbles = [];
+
+                if (matchedPairs === totalPairsToSelect) {
+                    // Game finished
+                    successMessage.style.display = 'flex';
+                    // Ensure restart button listener is attached when message appears
+                    document.getElementById('restartBtn').addEventListener('click', restartGame);
+                }
+            } else {
+                // No match
+                // Optional: Add a visual effect for mismatch (e.g., shake)
+                bubble1.classList.add('mismatch');
+                bubble2.classList.add('mismatch');
+
+                setTimeout(() => {
+                    bubble1.classList.remove('selected', 'mismatch');
+                    bubble2.classList.remove('selected', 'mismatch');
+                    selectedBubbles = [];
+                }, 800); // Mismatch feedback duration
+            }
+        }
+
+        function startGame() {
+            // Get selected category
+            currentCategory = categorySelect.value;
+            currentCategoryDisplay.textContent = `当前类别: ${currentCategory}`;
+
+            // Clear previous game state
+            gameContainer.innerHTML = '';
+            successMessage.style.display = 'none';
+            selectedBubbles = [];
+            matchedPairs = 0;
+            const allWordCategories = getAllWordPairs(); // Get categorized words
+            const wordsInCategory = allWordCategories[currentCategory] || [];
+
+            // Determine the number of pairs to use for this round
+            // If a category has fewer than totalPairsToSelect, use all available pairs
+            const pairsForThisRound = Math.min(wordsInCategory.length, totalPairsToSelect);
+            if (wordsInCategory.length < totalPairsToSelect && wordsInCategory.length > 0) {
+                console.warn(`Category '${currentCategory}' only has ${wordsInCategory.length} pairs. Using ${wordsInCategory.length} pairs for this game.`);
+            }
+            // If category is empty or somehow invalid
+            if (pairsForThisRound === 0) {
+                gameContainer.innerHTML = '<p style="text-align: center; width: 100%; grid-column: 1 / -1;">这个类别没有单词！请选择其他类别。</p>';
+                // Adjust grid columns for the message
+                gameContainer.style.gridTemplateColumns = '1fr'; 
+                return; // Stop if no words
+            }
+
+            // Select random word pairs from the chosen category
+            currentWordPairs = selectRandomPairs(wordsInCategory, pairsForThisRound);
+
+            // Create bubbles for Finnish and Chinese words
+            const bubbles = [];
+            currentWordPairs.forEach((pair, index) => {
+                bubbles.push(createBubble(pair.finnish, 'finnish', index));
+                bubbles.push(createBubble(pair.chinese, 'chinese', index));
+            });
+
+            // Shuffle bubbles and add to the container
+            shuffle(bubbles);
+            bubbles.forEach(bubble => gameContainer.appendChild(bubble));
+
+            // Adjust grid columns based on the number of bubbles
+            const columns = Math.ceil(Math.sqrt(bubbles.length));
+            // Ensure columns is at least 2, even if only 1 pair (2 bubbles)
+            const displayColumns = Math.max(columns, 2);
+            gameContainer.style.gridTemplateColumns = `repeat(${displayColumns}, 1fr)`;
+        }
+
+        function restartGame() {
+            // Restart with the currently selected category
+            startGame();
+        }
+
+        // Function to populate category selector
+        function populateCategorySelector() {
+            const allWordCategories = getAllWordPairs();
+            const categories = Object.keys(allWordCategories);
+            // Clear existing options first (important if called multiple times)
+            categorySelect.innerHTML = ''; 
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                categorySelect.appendChild(option);
+            });
+            // Set initial selected value based on default or ensure it matches currentCategory
+            categorySelect.value = currentCategory;
+        }
+
+        /**
+         * @typedef {object} WordPair
+         * @property {string} finnish - 芬兰语单词
+         * @property {string} chinese - 中文翻译
+         */
+
+        /**
+         * @typedef {Object.<string, WordPair[]>} WordCategories
+         * 包含所有单词分类及其对应单词对的对象
+         * 键是类别名称 (例如 "数字", "家庭成员")
+         * 值是包含该类别单词对的数组
+         */
+
+        /**
+         * 获取所有分类的单词对。
+         * 数据来源于 高频芬兰语单词400.txt 文件，并经过整理和修正。
+         * @returns {WordCategories} 包含所有分类单词对的对象
+         * @description 对源文件中的部分拼写、翻译和分类进行了修正和简化。
+         */
+         function getAllWordPairs() {
+            // 词汇数据 - 从 高频芬兰语单词400.txt 文件提取，并进行整理和修正
+            return {
+                "数字": [
+                    { finnish: "yksi", chinese: "一" },
+                    { finnish: "kaksi", chinese: "二" },
+                    { finnish: "kolme", chinese: "三" },
+                    { finnish: "neljä", chinese: "四" },
+                    { finnish: "viisi", chinese: "五" },
+                    { finnish: "kuusi", chinese: "六" },
+                    { finnish: "seitsemän", chinese: "七" },
+                    { finnish: "kahdeksan", chinese: "八" },
+                    { finnish: "yhdeksän", chinese: "九" },
+                    { finnish: "kymmenen", chinese: "十" }
+                ],
+                "家庭成员": [
+                    { finnish: "isä", chinese: "父亲" },
+                    { finnish: "äiti", chinese: "母亲" },
+                    { finnish: "veli", chinese: "兄弟" },
+                    { finnish: "sisko", chinese: "姐妹" },
+                    { finnish: "lapsi", chinese: "孩子" },
+                    { finnish: "poika", chinese: "儿子" },
+                    { finnish: "tyttö", chinese: "女儿" },
+                    { finnish: "aviomies", chinese: "丈夫" },
+                    { finnish: "vaimo", chinese: "妻子" },
+                    { finnish: "vanhemmat", chinese: "父母" }
+                ],
+                "身体部位": [
+                    { finnish: "pää", chinese: "头" },
+                    { finnish: "silmä", chinese: "眼睛" },
+                    { finnish: "korva", chinese: "耳朵" },
+                    { finnish: "nenä", chinese: "鼻子" },
+                    { finnish: "suu", chinese: "嘴" },
+                    { finnish: "hammas", chinese: "牙齿" },
+                    { finnish: "käsi", chinese: "手" },
+                    { finnish: "jalka", chinese: "脚" },
+                    { finnish: "rinta", chinese: "胸" },
+                    { finnish: "selkä", chinese: "背" }
+                ],
+                "日常用品": [
+                    { finnish: "pöytä", chinese: "桌子" },
+                    { finnish: "tuoli", chinese: "椅子" },
+                    { finnish: "sänky", chinese: "床" },
+                    { finnish: "lamppu", chinese: "灯" },
+                    { finnish: "ikkuna", chinese: "窗户" },
+                    { finnish: "ovi", chinese: "门" },
+                    { finnish: "paperi", chinese: "纸" },
+                    { finnish: "kynä", chinese: "笔" },
+                    { finnish: "kirja", chinese: "书" },
+                    { finnish: "laatikko", chinese: "盒子" }
+                ],
+                "食物与饮料": [
+                    { finnish: "leipä", chinese: "面包" },
+                    { finnish: "makkara", chinese: "香肠" },
+                    { finnish: "juusto", chinese: "奶酪" },
+                    { finnish: "hedelmä", chinese: "水果" },
+                    { finnish: "vihannes", chinese: "蔬菜" },
+                    { finnish: "kana", chinese: "鸡肉" },
+                    { finnish: "liha", chinese: "肉" },
+                    { finnish: "kala", chinese: "鱼" },
+                    { finnish: "maito", chinese: "牛奶" },
+                    { finnish: "kahvi", chinese: "咖啡" },
+                    { finnish: "tee", chinese: "茶" },
+                    { finnish: "vesi", chinese: "水" }
+                ],
+                "颜色": [
+                    { finnish: "punainen", chinese: "红色" },
+                    { finnish: "sininen", chinese: "蓝色" },
+                    { finnish: "vihreä", chinese: "绿色" },
+                    { finnish: "keltainen", chinese: "黄色" },
+                    { finnish: "musta", chinese: "黑色" },
+                    { finnish: "valkoinen", chinese: "白色" },
+                    { finnish: "harmaa", chinese: "灰色" },
+                    { finnish: "ruskea", chinese: "棕色" },
+                    { finnish: "oranssi", chinese: "橙色" },
+                    { finnish: "violetti", chinese: "紫色" }
+                ],
+                "动物": [
+                    { finnish: "kissa", chinese: "猫" },
+                    { finnish: "koira", chinese: "狗" },
+                    { finnish: "hevonen", chinese: "马" },
+                    { finnish: "lammas", chinese: "羊" },
+                    { finnish: "lehmä", chinese: "牛" },
+                    { finnish: "jänis", chinese: "兔子" },
+                    { finnish: "kana", chinese: "鸡" },
+                    { finnish: "lintu", chinese: "鸟" },
+                    { finnish: "susi", chinese: "狼" },
+                    { finnish: "karhu", chinese: "熊" }
+                ],
+                "职业": [
+                    { finnish: "opettaja", chinese: "老师" },
+                    { finnish: "lääkäri", chinese: "医生" },
+                    { finnish: "poliisi", chinese: "警察" },
+                    { finnish: "myyjä", chinese: "销售员" },
+                    { finnish: "insinööri", chinese: "工程师" },
+                    { finnish: "toimittaja", chinese: "记者" },
+                    { finnish: "artisti", chinese: "艺术家" },
+                    { finnish: "muusikko", chinese: "音乐家" },
+                    { finnish: "maalari", chinese: "画家" },
+                    { finnish: "kokki", chinese: "厨师" },
+                    { finnish: "palomies", chinese: "消防员" }
+                ],
+                "场所": [
+                    { finnish: "koulu", chinese: "学校" },
+                    { finnish: "sairaala", chinese: "医院" },
+                    { finnish: "kauppa", chinese: "商店" },
+                    { finnish: "ravintola", chinese: "餐厅" },
+                    { finnish: "hotelli", chinese: "酒店" },
+                    { finnish: "bussipysäkki", chinese: "公交车站" },
+                    { finnish: "rautatieasema", chinese: "火车站" },
+                    { finnish: "lentokenttä", chinese: "机场" },
+                    { finnish: "parkkipaikka", chinese: "停车场" },
+                    { finnish: "puisto", chinese: "公园" }
+                ],
+                "交通工具": [
+                    { finnish: "auto", chinese: "汽车" },
+                    { finnish: "bussi", chinese: "公交车" },
+                    { finnish: "juna", chinese: "火车" },
+                    { finnish: "lentokone", chinese: "飞机" },
+                    { finnish: "vene", chinese: "船" },
+                    { finnish: "pyörä", chinese: "自行车" },
+                    { finnish: "moottoripyörä", chinese: "摩托车" },
+                    { finnish: "taksi", chinese: "出租车" },
+                    { finnish: "raitiovaunu", chinese: "电车" },
+                    { finnish: "metro", chinese: "地铁" }
+                ],
+                "形容词": [
+                    { finnish: "hyvä", chinese: "好的" },
+                    { finnish: "huono", chinese: "坏的" },
+                    { finnish: "iso", chinese: "大的" },
+                    { finnish: "pieni", chinese: "小的" },
+                    { finnish: "nopea", chinese: "快的" },
+                    { finnish: "hidas", chinese: "慢的" },
+                    { finnish: "kova", chinese: "强的/硬的" },
+                    { finnish: "heikko", chinese: "弱的" },
+                    { finnish: "kuuma", chinese: "热的" },
+                    { finnish: "kylmä", chinese: "冷的" }
+                ],
+                "动词": [
+                    { finnish: "olla", chinese: "是" },
+                    { finnish: "mennä", chinese: "去" },
+                    { finnish: "tulla", chinese: "来" },
+                    { finnish: "saada", chinese: "得到" },
+                    { finnish: "tehdä", chinese: "做" },
+                    { finnish: "oppia", chinese: "学习" },
+                    { finnish: "puhua", chinese: "说" },
+                    { finnish: "kuulla", chinese: "听" },
+                    { finnish: "nähdä", chinese: "看" },
+                    { finnish: "rakastaa", chinese: "爱" }
+                ],
+                "时间": [
+                    { finnish: "päivä", chinese: "天" },
+                    { finnish: "yö", chinese: "夜" },
+                    { finnish: "kuukausi", chinese: "月" },
+                    { finnish: "vuosi", chinese: "年" },
+                    { finnish: "aamu", chinese: "早上" },
+                    { finnish: "ilta", chinese: "晚上" },
+                    { finnish: "kesä", chinese: "夏天" },
+                    { finnish: "talvi", chinese: "冬天" },
+                    { finnish: "kevät", chinese: "春天" },
+                    { finnish: "syksy", chinese: "秋天" }
+                ],
+                "方位词": [
+                    { finnish: "etelä", chinese: "南" },
+                    { finnish: "pohjoinen", chinese: "北" },
+                    { finnish: "itä", chinese: "东" },
+                    { finnish: "länsi", chinese: "西" },
+                    { finnish: "ylös", chinese: "上" },
+                    { finnish: "alas", chinese: "下" },
+                    { finnish: "eteen", chinese: "前" },
+                    { finnish: "taakse", chinese: "后" },
+                    { finnish: "vasen", chinese: "左" },
+                    { finnish: "oikea", chinese: "右" }
+                ],
+                "代词": [
+                    { finnish: "minä", chinese: "我" },
+                    { finnish: "sinä", chinese: "你" },
+                    { finnish: "hän", chinese: "他/她" },
+                    { finnish: "me", chinese: "我们" },
+                    { finnish: "te", chinese: "你们" },
+                    { finnish: "he", chinese: "他们" },
+                    { finnish: "tämä", chinese: "这个" },
+                    { finnish: "tuo", chinese: "那个" },
+                    { finnish: "se", chinese: "它" },
+                    { finnish: "kuka", chinese: "谁" }
+                ],
+                "副词": [
+                    { finnish: "hyvin", chinese: "好地" },
+                    { finnish: "huonosti", chinese: "坏地" },
+                    { finnish: "nopeasti", chinese: "快速地" },
+                    { finnish: "hitaasti", chinese: "缓慢地" },
+                    { finnish: "paljon", chinese: "很多" },
+                    { finnish: "vähän", chinese: "很少" },
+                    { finnish: "täällä", chinese: "这里" },
+                    { finnish: "tuolla", chinese: "那里" },
+                    { finnish: "nyt", chinese: "现在" },
+                    { finnish: "sitten", chinese: "然后" }
+                ],
+                "连词": [
+                    { finnish: "ja", chinese: "和" },
+                    { finnish: "tai", chinese: "或者" },
+                    { finnish: "mutta", chinese: "但是" },
+                    { finnish: "koska", chinese: "因为" },
+                    { finnish: "vaikka", chinese: "虽然" },
+                    { finnish: "kun", chinese: "当...时候" },
+                    { finnish: "että", chinese: "(引导从句)" },
+                    { finnish: "jos", chinese: "如果" },
+                    { finnish: "kuin", chinese: "比..." },
+                    { finnish: "myös", chinese: "也" }
+                ],
+                "常用词": [
+                    { finnish: "sana", chinese: "单词" },
+                    { finnish: "lause", chinese: "句子" },
+                    { finnish: "kieli", chinese: "语言" },
+                    { finnish: "kyllä", chinese: "是的" },
+                    { finnish: "ei", chinese: "不/没有" },
+                    { finnish: "kiitos", chinese: "谢谢" },
+                    { finnish: "anteeksi", chinese: "对不起/打扰了" },
+                    { finnish: "ole hyvä", chinese: "不客气/请" },
+                    { finnish: "ongelma", chinese: "问题" },
+                    { finnish: "apu", chinese: "帮助" }
+                ],
+                "国家与城市": [
+                    { finnish: "Helsinki", chinese: "赫尔辛基" },
+                    { finnish: "Turku", chinese: "图尔库" },
+                    { finnish: "Tampere", chinese: "坦佩雷" },
+                    { finnish: "Oulu", chinese: "奥卢" },
+                    { finnish: "Suomi", chinese: "芬兰" },
+                    { finnish: "Ruotsi", chinese: "瑞典" },
+                    { finnish: "Norja", chinese: "挪威" },
+                    { finnish: "Venäjä", chinese: "俄罗斯" },
+                    { finnish: "Kiina", chinese: "中国" },
+                    { finnish: "kaupunki", chinese: "城市" }
+                ],
+                 "自然": [
+                    { finnish: "vuori", chinese: "山" },
+                    { finnish: "joki", chinese: "河" },
+                    { finnish: "järvi", chinese: "湖" },
+                    { finnish: "meri", chinese: "海" },
+                    { finnish: "ranta", chinese: "岸/海滩" },
+                    { finnish: "metsä", chinese: "森林" },
+                    { finnish: "puu", chinese: "树" },
+                    { finnish: "kukka", chinese: "花" },
+                    { finnish: "taivas", chinese: "天空" },
+                    { finnish: "maa", chinese: "土地/国家" }
+                ],
+                 "天气": [
+                    { finnish: "sade", chinese: "雨" },
+                    { finnish: "lumi", chinese: "雪" },
+                    { finnish: "aurinko", chinese: "太阳" },
+                    { finnish: "pilvi", chinese: "云" },
+                    { finnish: "tuuli", chinese: "风" },
+                    { finnish: "myrsky", chinese: "风暴" },
+                    { finnish: "lämpötila", chinese: "温度" },
+                    { finnish: "pakkanen", chinese: "严寒/零下温度" },
+                    { finnish: "sumu", chinese: "雾" },
+                    { finnish: "sää", chinese: "天气" }
+                 ]
+            };
+        }
+
+
+        // Event Listeners
+        newGameBtn.addEventListener('click', startGame); // Button starts game with selected category
+        // Optional: Start a new game immediately when the category changes
+        categorySelect.addEventListener('change', startGame); // Start new game on category change
+        // Ensure restart button inside success message also works
+        document.getElementById('restartBtn').addEventListener('click', restartGame);
+
+        // Initial game setup on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            populateCategorySelector(); // Populate the dropdown first
+            startGame(); // Start the game with the default category
+        });
+
+    </script>
+
+    <!-- Removed the duplicate allWordPairs array definition below -->
+    <script>
+        // const allWordPairs = [ // This block is removed as it's duplicated and conflicts with getAllWordPairs() function
+            // 数字
+            { finnish: "yksi", chinese: "一" },
+            { finnish: "kaksi", chinese: "二" },
+            { finnish: "kolme", chinese: "三" },
+            { finnish: "neljä", chinese: "四" },
+            { finnish: "viisi", chinese: "五" },
+            { finnish: "kuusi", chinese: "六" },
+            { finnish: "seitsemän", chinese: "七" },
+            { finnish: "kahdeksan", chinese: "八" },
+            { finnish: "yhdeksän", chinese: "九" },
+            { finnish: "kymmenen", chinese: "十" },
+            // 家庭成员
+            { finnish: "isä", chinese: "父亲" },
+            { finnish: "äiti", chinese: "母亲" },
+            { finnish: "veljeni", chinese: "我的兄弟" },
+            { finnish: "siskoni", chinese: "我的姐妹" },
+            { finnish: "lapsi", chinese: "孩子" },
+            { finnish: "poika", chinese: "儿子" },
+            { finnish: "tyttö", chinese: "女儿" },
+            { finnish: "aviomies", chinese: "丈夫" },
+            { finnish: "vaimo", chinese: "妻子" },
+            { finnish: "vanhempi", chinese: "父母" },
+            // 身体部位
+            { finnish: "pää", chinese: "头" },
+            { finnish: "silmä", chinese: "眼睛" },
+            { finnish: "korva", chinese: "耳朵" },
+            { finnish: "nenä", chinese: "鼻子" },
+            { finnish: "suu", chinese: "嘴" },
+            { finnish: "hammas", chinese: "牙齿" },
+            { finnish: "käsi", chinese: "手" }, // Corrected typo kätkä -> käsi
+            { finnish: "jalka", chinese: "脚" },
+            { finnish: "rinta", chinese: "胸" },
+            { finnish: "selkä", chinese: "背" },
+            // 日常用品
+            { finnish: "pöytä", chinese: "桌子" },
+            { finnish: "tuoli", chinese: "椅子" },
+            { finnish: "sänky", chinese: "床" },
+            { finnish: "lampu", chinese: "灯" },
+            { finnish: "ikkuna", chinese: "窗户" },
+            { finnish: "ovi", chinese: "门" },
+            { finnish: "paperi", chinese: "纸" },
+            { finnish: "kynä", chinese: "笔" },
+            { finnish: "kirja", chinese: "书" },
+            { finnish: "laatikko", chinese: "盒子" },
+            // 食物与饮料
+            { finnish: "leipä", chinese: "面包" },
+            { finnish: "makkara", chinese: "香肠" },
+            { finnish: "juusto", chinese: "奶酪" },
+            { finnish: "hedelmä", chinese: "水果" },
+            { finnish: "vihanneisuus", chinese: "蔬菜" },
+            { finnish: "kana", chinese: "鸡肉" },
+            { finnish: "liha", chinese: "肉" },
+            { finnish: "kala", chinese: "鱼" },
+            { finnish: "maitó", chinese: "牛奶" },
+            { finnish: "kahvi", chinese: "咖啡" },
+            // 颜色
+            { finnish: "punainen", chinese: "红色" },
+            { finnish: "sininen", chinese: "蓝色" },
+            { finnish: "vihreä", chinese: "绿色" },
+            { finnish: "keltainen", chinese: "黄色" },
+            { finnish: "musta", chinese: "黑色" },
+            { finnish: "valkoinen", chinese: "白色" },
+            { finnish: "harmaa", chinese: "灰色" },
+            { finnish: "ruskea", chinese: "棕色" },
+            { finnish: "oranssi", chinese: "橙色" },
+            { finnish: "violetti", chinese: "紫色" },
+            // 动物
+            { finnish: "kissa", chinese: "猫" },
+            { finnish: "koira", chinese: "狗" },
+            { finnish: "hevonen", chinese: "马" },
+            { finnish: "lammas", chinese: "羊" },
+            { finnish: "lehmä", chinese: "牛" },
+            { finnish: "kani", chinese: "鸭" },
+            { finnish: "hanhi", chinese: "鸡" },
+            { finnish: "lintu", chinese: "鸟" },
+            { finnish: "jänis", chinese: "兔子" },
+            { finnish: "hirvi", chinese: "鹿" },
+            // 职业
+            { finnish: "opettaja", chinese: "老师" },
+            { finnish: "lääkäri", chinese: "医生" },
+            { finnish: "poliisi", chinese: "警察" },
+            { finnish: "myyjä", chinese: "销售员" },
+            { finnish: "insinööri", chinese: "工程师" },
+            { finnish: "toimittaja", chinese: "记者" },
+            { finnish: "artisti", chinese: "艺术家" },
+            { finnish: "muusikko", chinese: "音乐家" },
+            { finnish: "maalaroi", chinese: "画家" },
+            { finnish: "kirurgi", chinese: "外科医生" },
+            // 场所
+            { finnish: "koulu", chinese: "学校" },
+            { finnish: "sairaala", chinese: "医院" },
+            { finnish: "kauppa", chinese: "商店" },
+            { finnish: "ravintola", chinese: "餐厅" },
+            { finnish: "hotelli", chinese: "酒店" },
+            { finnish: "bussi pysäkki", chinese: "公交车站" },
+            { finnish: "rautatieasema", chinese: "火车站" },
+            { finnish: "lentokenttä", chinese: "机场" },
+            { finnish: "parkki", chinese: "停车场" },
+            { finnish: "puisto", chinese: "公园" },
+            // 交通工具
+            { finnish: "auto", chinese: "汽车" },
+            { finnish: "bussi", chinese: "公交车" },
+            { finnish: "juna", chinese: "火车" },
+            { finnish: "lentoasema", chinese: "飞机" },
+            { finnish: "vene", chinese: "船" },
+            { finnish: "pyörä", chinese: "自行车" },
+            { finnish: "moottoripyörä", chinese: "摩托车" },
+            { finnish: "taksi", chinese: "出租车" },
+            { finnish: "raitiovaunu", chinese: "电车" },
+            { finnish: "helikopteri", chinese: "直升机" }
+        ];
+        
+        // 音效
+        const sounds = {
+            click: new Audio("data:audio/wav;base64,UklGRpQFAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YXAFAACAgICAgICAgICAgICAgICAgICAgICAgICAf3hxeH+AfXZ1eHx6dnR5fYGFgoOKi42aloubq6GOjI2Op7ythXJ0eYF5aV1AOFFib32HmZSHhpCalIJ6cHN0b3BtcHR3eHp/iIyRlpmhpKyxtLW1tLGvrKupqaedkYmEgHJnaXN0b2piVEtQVFZXVllecnp6fYKFjZWbm6Gqs7eyr6eknpuak4eDfnNwcXJfU1NTSUBKUVdYX2Fqb3F8gIGDiYuQkpWUlZKUkpCMioiCfHh1cW1mYVtWUE1LSEZFQ0RFRUVITVNWXWNsb3R3gYeMkJWZnaCjoqWmqKinpqajo6GgmpSOiYR/e3ZxbGdkYV5cWVdVU1JTVFVWV1pdYGNmZ2pvcXR3eHp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/wABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v8AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlM="),
+            match: new Audio("data:audio/wav;base64,UklGRqQGAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YYAGAACBhYqFbF1cZHqFhIJ5eXZ3eHp/g4OLi5KRlJKUkpGRkZKUlJmZnqCenp6enp2bmZaTkY+Mi4mIh4aEg4GBgYGBgoODg4SEg4OCgYB/fn18e3p5eHd2dXV0c3JycXBwb25ubm1tbGxsbGxra2tqamlpaGdnZmVlZGRjYmJiYWFhYGBgYGBfX19fX15eXl5eXl1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1
