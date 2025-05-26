@@ -44,36 +44,10 @@ FinGame 是一个简单的网页应用，旨在帮助用户通过互动游戏的
         *   当所选类别的所有词对都被成功匹配后，游戏结束，屏幕中央会显示"恭喜你挑战成功!"的信息。
         *   用户可以点击"再玩一次"按钮以当前类别重新开始一局游戏，或者选择新的类别开始新游戏。
     *   （推测）每个单词气泡上可能有一个发音按钮，允许用户听单词的发音。
-*   **布局结构** (主要HTML元素及其类/ID):
-    *   **整体容器**: 页面内容主要由 `<body>` 元素包裹，采用 `flex` 布局，使内容垂直居中。
-    *   **游戏标题**: `<h1>大文老师消消乐</h1>`。
-    *   **控制区域** (`<div class="controls">`):
-        *   **类别选择**: `<select id="categorySelect">` 用于选择不同的单词类别。选项由 JavaScript 动态填充。
-        *   **开始新游戏按钮**: `<button class="control-btn" id="newGameBtn">`。
-    *   **当前类别显示**: `<div id="currentCategoryDisplay">` 显示当前选择的单词类别。
-    *   **游戏区域** (`<div class="game-container" id="gameContainer">`): 采用 `grid` 布局，用于展示单词气泡。其列数会根据当前局游戏中气泡的数量动态调整。
-        *   **单词气泡** (`<div class="bubble">`): 代表芬兰语单词或中文意思的气泡。每个气泡包含单词文本 (`textContent`)，并通过 `dataset` 属性存储其类型（`finnish` 或 `chinese`）和配对ID (`pairId`)。气泡具有独特的背景颜色。气泡具有点击交互效果，如选中、匹配成功、匹配失败等动画。
-        *   **发音按钮** (`<button class="pronunciation-btn">`): 位于每个单词气泡内部（通过CSS绝对定位），用于播放单词发音。
-    *   **成功信息提示框** (`<div class="message" id="successMessage">`): 游戏成功后显示的提示信息。
-        *   **再玩一次按钮**: `<button class="restart-btn" id="restartBtn">`。
-*   **样式说明** (主要CSS类及效果):
-    *   **背景**: 页面背景色为奶白色 (`#FFF5E6`)。
-    *   **字体**: 主要使用 `Arial` 或无衬线字体。
-    *   **标题 (`<h1>`)**: 字体较大，有文本阴影效果。
-    *   **游戏容器 (`game-container`)**: 使用 CSS Grid 布局，气泡之间有间隔。
-    *   **气泡 (`bubble`)**: 
-        *   圆形，内部文字居中。
-        *   有阴影效果，鼠标悬停时会有放大和阴影增强的动态效果。
-        *   `selected`: 选中状态的气泡会进一步放大并有高亮边框或阴影。
-        *   `matched`: 匹配成功的气泡会播放动画（如缩小消失）。
-        *   `mismatch`: 匹配失败的气泡会播放抖动动画，并短暂改变背景色以示警告。
-        *   气泡颜色多样，通过 `getRandomColor()` 函数随机分配。
-    *   **控制按钮 (`control-btn`, `restart-btn`)**: 具有统一的圆角、背景色和鼠标悬停变色效果。
-    *   **信息提示框 (`message`)**: 固定在屏幕中央，有背景和阴影，初始状态为隐藏。
 
 ## 如何运行
 
-直接在现代浏览器中打开 `FinGame.html` 文件即可开始游戏。
+直接在现代浏览器中打开 `FinGame.html` 文件即可开始游戏。访问[代码库](https://github.com/robbinzh/FinBubbleGame)。
 
 ## 未来展望和优化建议
 
